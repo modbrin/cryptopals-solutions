@@ -4,12 +4,13 @@
 #include <bitset>
 #include <cassert>
 #include <unordered_map>
-#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <array>
 #include <functional>
 #include <cstddef>
+#include <unordered_set>
+#include <openssl/aes.h>
 
 // UTILS #######################################################################
 
@@ -55,7 +56,7 @@ const std::string base64_chars =
         "0123456789+/";
 
 // parser-like approach to base64 encoding
-std::string bytes_to_base64(std::vector<std::byte> bytes) {
+std::string base64_encode(std::vector<std::byte> bytes) {
     std::stringstream buffer;
     int hexCounter = 0, octCounter = 0;
     size_t iter = 0;
@@ -94,7 +95,7 @@ std::string bytes_to_base64(std::vector<std::byte> bytes) {
 }
 
 char base64_to_index(char in) {
-    // TODO resolve integral promotions issue
+    // TODO resolve integral promotions warnings
     if (in >= 65 && in <= 90)       // from A to Z
         return in - 65;             // map to 0-25
     else if (in >= 97 && in <= 122) // from a to z
@@ -108,7 +109,7 @@ char base64_to_index(char in) {
     else throw std::runtime_error("unexpected base64 character");
 }
 
-std::vector<std::byte> base64_to_bytes(std::string in) {
+std::vector<std::byte> base64_decode(std::string in) {
     std::stringstream buffer;
     int octCounter = 0;
     std::string octBuffer;
@@ -138,11 +139,11 @@ std::vector<std::byte> base64_to_bytes(std::string in) {
 }
 
 std::string hex_str_to_base64(std::string const &in) {
-    return bytes_to_base64(hex_str_to_bytes(in));
+    return base64_encode(hex_str_to_bytes(in));
 }
 
 std::string base64_to_hex_str(std::string const &in) {
-    return bytes_to_hex_str(base64_to_bytes(in));
+    return bytes_to_hex_str(base64_decode(in));
 }
 
 // TASK 2 #######################################################################
@@ -172,71 +173,36 @@ std::vector<std::byte> single_byte_xor_decode_hex(std::vector<std::byte> const &
 
 // TASK 4 #######################################################################
 
-//const std::unordered_map<char, double> english_letter_frequencies{
-//	{'a', 8.167}, {'b', 1.492},  {'c', 2.782},
-//	{'d', 4.253},  {'e', 12.702}, {'f', 2.228},
-//	{'g', 2.015},  {'h', 6.094}, {'i', 6.966},
-//	{'j', 0.153},  {'k', 0.772}, {'l', 4.025},
-//	{'m', 2.406},  {'n', 6.749}, {'o', 7.507},
-//	{'p', 1.929},  {'q', 0.095}, {'r', 5.987},
-//	{'s', 6.327},  {'t', 9.056}, {'u', 2.758},
-//	{'v', 0.978},  {'w', 2.360}, {'x', 0.150},
-//	{'y', 1.974},  {'z', 0.074}
-//};
-//
-//std::vector<char> english_whitelist{
-//	'.', ',', '/', ' ', ':', ';'
-//};
-
+// data is taken from http://www.data-compression.com/english.html
 const std::unordered_map<char, double> english_letter_frequencies{
-        {'a', .08167},
-        {'b', .01492},
-        {'c', .02782},
-        {'d', .04253},
-        {'e', .12702},
-        {'f', .02228},
-        {'g', .02015},
-        {'h', .06094},
-        {'i', .06094},
-        {'j', .00153},
-        {'k', .00772},
-        {'l', .04025},
-        {'m', .02406},
-        {'n', .06749},
-        {'o', .07507},
-        {'p', .01929},
-        {'q', .00095},
-        {'r', .05987},
-        {'s', .06327},
-        {'t', .09056},
-        {'u', .02758},
-        {'v', .00978},
-        {'w', .02360},
-        {'x', .00150},
-        {'y', .01974},
-        {'z', .00074},
-        {' ', .13000}
+        {'a', 0.0651738},
+        {'b', 0.0124248},
+        {'c', 0.0217339},
+        {'d', 0.0349835},
+        {'e', 0.1041442},
+        {'f', 0.0197881},
+        {'g', 0.0158610},
+        {'h', 0.0492888},
+        {'i', 0.0558094},
+        {'j', 0.0009033},
+        {'k', 0.0050529},
+        {'l', 0.0331490},
+        {'m', 0.0202124},
+        {'n', 0.0564513},
+        {'o', 0.0596302},
+        {'p', 0.0596302},
+        {'q', 0.0008606},
+        {'r', 0.0497563},
+        {'s', 0.0515760},
+        {'t', 0.0729357},
+        {'u', 0.0225134},
+        {'v', 0.0082903},
+        {'w', 0.0171272},
+        {'x', 0.0013692},
+        {'y', 0.0145984},
+        {'z', 0.0007836},
+        {' ', 0.1918182}
 };
-
-// rate string based on english letter frequencies, better rating is lower
-//double rate_frequency(std::string const &in) {
-//    int total = 0;
-//    std::unordered_map<char, double> current_frequencies; // defaults are zeros
-//    for (auto const &elem : in) {
-//        if (english_letter_frequencies.find(std::tolower(elem)) != english_letter_frequencies.end()) {
-//            current_frequencies[std::tolower(elem)] += 1.;
-//        }
-//        ++total;
-//
-//    }
-//    for (auto &elem : current_frequencies) {
-//        elem.second /= total;
-//    }
-//    double rating = 0;
-//    for (auto const &elem : english_letter_frequencies)
-//        rating += std::fabs(elem.second - current_frequencies[elem.first]);
-//    return rating;
-//}
 
 // rate string based on english letter frequencies, better rating is greater
 double rate_english_frequency(std::string const &in) {
@@ -338,7 +304,6 @@ std::vector<Ty> subvector(std::vector<Ty> in, size_t from, size_t count) {
 std::vector<int>
 find_keysizes(std::vector<std::byte> const &cipher, const int chunks_num = 2, const int best_count = 3) {
     int const keymin = 2, keymax = 40;
-    //assert(cipher.size() >= keymax * chunks_num);
     assert(best_count < keymax - keymin + 1);
 
     std::vector<std::pair<int, double>> distances;
@@ -376,7 +341,7 @@ std::vector<std::vector<std::byte>> split_into_chunks(std::vector<std::byte> con
     return result;
 }
 
-std::vector<std::byte> brute_repeating_key_xor(std::vector<std::byte> cipher) {
+std::vector<std::byte> brute_repeating_key_xor(std::vector<std::byte> const &cipher) {
     auto keysizes = find_keysizes(cipher);
 
     std::vector<std::byte> best_key;
@@ -401,10 +366,44 @@ std::vector<std::byte> brute_repeating_key_xor(std::vector<std::byte> cipher) {
 
 // TASK 7 #######################################################################
 
+std::string decipher_aes_ecb(std::string cipher_str, std::string key) {
+    // prepare key
+    AES_KEY dec_key;
+    AES_set_decrypt_key((unsigned char *) key.c_str(), 128, &dec_key);
+
+    // prepare data and output container
+    const char *msg = cipher_str.c_str();
+    char *result = new char[cipher_str.size()];
+    // process block by block
+    for (int i = 0; i < cipher_str.size(); i += AES_BLOCK_SIZE) // AES always has block size of 128-bit i.e. 16 bytes
+        AES_ecb_encrypt((unsigned char *) msg + i, (unsigned char *) result + i, &dec_key, AES_DECRYPT);
+    // collect result, ignore padding
+    std::string output;
+    for (int i = 0; i < cipher_str.size(); ++i) {
+        if (result[i] == '\x04') break; // End-Of-Transmission received
+        output += result[i];
+    }
+    return output;
+}
+
 // TASK 8 #######################################################################
+
+int find_aes_ecb_repeats(std::string const &cipher) {
+    std::unordered_set<std::string> block_occurances;
+    int repeats = 0;
+    for (int i = 0; i < cipher.size(); i += AES_BLOCK_SIZE) {
+        std::string block = cipher.substr(i, AES_BLOCK_SIZE);
+        if (block_occurances.find(block) != block_occurances.end())
+            ++repeats;
+        else
+            block_occurances.insert(block);
+    }
+    return repeats;
+}
 
 // RUNNERS #######################################################################
 
+// Implement base64 encoding/decoding
 void task_1() {
     assert(hex_str_to_base64("") == "");
     assert(hex_str_to_base64("66") == "Zg==");
@@ -430,18 +429,21 @@ void task_1() {
     std::cout << "Task 1 passed" << std::endl;
 }
 
+// Implement fixed length xor function
 void task_2() {
     assert(fixed_length_xor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965") ==
            "746865206b696420646f6e277420706c6179");
     std::cout << "Task 2 passed" << std::endl;
 }
 
+// Break single-byte-xor cipher
 void task_3() {
     auto cipher = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
     auto key = brute_single_byte_xor_hex(as_bytes(cipher));
     std::cout << "Task 3 (best guess): " << as_str(single_byte_xor_decode_hex(as_bytes(cipher), key)) << std::endl;
 }
 
+// Find and break single-byte-xor cipher from bunch of samples
 void task_4() {
     std::string line;
     std::fstream infile("task4.txt", std::ios::in);
@@ -461,6 +463,7 @@ void task_4() {
     std::cout << "Task 4 (best guess): " << best_guess << std::endl;
 }
 
+// Implement repeating-key-xor encryption/decryption
 void task_5() {
     auto r1 = repeating_key_xor_string_hex(
             "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal", "ICE");
@@ -469,6 +472,7 @@ void task_5() {
     std::cout << "Task 5 passed" << std::endl;
 }
 
+// Break base64-encoded ciphertext as repeating-key-xor
 void task_6() {
     assert(string_distance("this is a test", "wokka wokka!!!") == 37);
 
@@ -480,13 +484,51 @@ void task_6() {
     while (getline(infile, fragment)) encoded += fragment;
 
     // decode input
-    auto cipher = base64_to_bytes(encoded);
+    auto cipher = base64_decode(encoded);
 
     // get best key
     auto best_key = brute_repeating_key_xor(cipher);
 
-    std::cout << "Task 6:\nBest key: " << as_str(best_key) << std::endl;
-    std::cout << "Best guess: " << as_str(repeating_key_xor(cipher, best_key)) << std::endl;
+    std::cout << "Task 6 (best key: " << as_str(best_key) << ")" << std::endl;
+    std::cout << "Best guess: " << as_str(repeating_key_xor(cipher, best_key)).substr(0, 100) << "..." << std::endl;
+}
+
+void task_7() {
+    const std::string key = "YELLOW SUBMARINE";
+    std::fstream infile("task7.txt", std::ios::in);
+    if (!infile) throw std::runtime_error("opening file failed");
+
+    // read base64-encoded cipher from file
+    std::string encoded, fragment;
+    while (getline(infile, fragment)) encoded += fragment;
+
+    // decode input
+    auto cipher = base64_decode(encoded);
+
+    auto output = decipher_aes_ecb(as_str(cipher), key);
+    std::cout << "Task 7 (decrypted):\n" << output.substr(0, 100) << "..." << std::endl;
+}
+
+// Detect AES in ECB mode from bunch of hex-encoded ciphertexts
+void task_8() {
+    std::fstream infile("task8.txt", std::ios::in);
+    if (!infile) throw std::runtime_error("opening file failed");
+
+    std::string likely_ecb_cipher;
+    int max_repeats = -1;
+
+    std::string line;
+    while (getline(infile, line)) {
+        int repeats = find_aes_ecb_repeats(as_str(hex_str_to_bytes(line)));
+        if (repeats > max_repeats) {
+            max_repeats = repeats;
+            likely_ecb_cipher = line;
+        }
+    }
+    std::cout << "Task 8: " << "(" << max_repeats << " repeats) "
+              << likely_ecb_cipher.substr(0, 30)
+              << "..."
+              << std::endl;
 }
 
 int main() {
@@ -496,6 +538,7 @@ int main() {
     task_4();
     task_5();
     task_6();
-    printf("done");
+    task_7();
+    task_8();
     return 0;
 }
