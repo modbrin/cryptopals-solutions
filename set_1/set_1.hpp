@@ -371,22 +371,43 @@ std::vector<std::byte> brute_repeating_key_xor(std::vector<std::byte> const& cip
 
 // TASK 7 #######################################################################
 
-std::string decipher_aes_ecb(std::string cipher_str, std::string key) {
+//std::string decipher_aes_ecb(std::string cipher_str, std::string key) {
+//	// prepare key
+//	AES_KEY dec_key;
+//	AES_set_decrypt_key((unsigned char*)key.c_str(), 128, &dec_key);
+//
+//	// prepare data and output container
+//	const char* msg = cipher_str.c_str();
+//	char* result = new char[cipher_str.size()];
+//	// process block by block
+//	for (int i = 0; i < cipher_str.size(); i += AES_BLOCK_SIZE) // AES always has block size of 128-bit i.e. 16 bytes
+//		AES_ecb_encrypt((unsigned char*)msg + i, (unsigned char*)result + i, &dec_key, AES_DECRYPT);
+//	// collect result, ignore padding
+//	std::string output;
+//	for (int i = 0; i < cipher_str.size(); ++i) {
+//		if (result[i] == '\x04') break; // End-Of-Transmission received
+//		output += result[i];
+//	}
+//	return output;
+//}
+
+std::vector<std::byte> decipher_aes_ecb(std::vector<std::byte> const& cipher_str, std::vector<std::byte> const& key) {
 	// prepare key
 	AES_KEY dec_key;
-	AES_set_decrypt_key((unsigned char*)key.c_str(), 128, &dec_key);
+	AES_set_decrypt_key((unsigned char const*)key.data(), 128, &dec_key);
 
 	// prepare data and output container
-	const char* msg = cipher_str.c_str();
-	char* result = new char[cipher_str.size()];
+	auto const msg = reinterpret_cast<unsigned char const*>(cipher_str.data());
+	std::unique_ptr<unsigned char[]> result(new unsigned char[cipher_str.size()]);
 	// process block by block
 	for (int i = 0; i < cipher_str.size(); i += AES_BLOCK_SIZE) // AES always has block size of 128-bit i.e. 16 bytes
-		AES_ecb_encrypt((unsigned char*)msg + i, (unsigned char*)result + i, &dec_key, AES_DECRYPT);
+		AES_ecb_encrypt(msg + i, result.get() + i, &dec_key, AES_DECRYPT);
 	// collect result, ignore padding
-	std::string output;
+	std::vector<std::byte> output;
+	output.reserve(cipher_str.size());
 	for (int i = 0; i < cipher_str.size(); ++i) {
 		if (result[i] == '\x04') break; // End-Of-Transmission received
-		output += result[i];
+		output.push_back(static_cast<std::byte>(result[i]));
 	}
 	return output;
 }
@@ -510,8 +531,8 @@ void task_7() {
 	// decode input
 	auto cipher = base64_decode(encoded);
 
-	auto output = decipher_aes_ecb(as_str(cipher), key);
-	std::cout << "Task 7 (decrypted):\n" << output.substr(0, 100) << "..." << std::endl;
+	auto output = decipher_aes_ecb(cipher, as_bytes(key));
+	std::cout << "Task 7 (decrypted):\n" << as_str(output).substr(0, 100) << "..." << std::endl;
 }
 
 // Detect AES in ECB mode from bunch of hex-encoded ciphertexts
