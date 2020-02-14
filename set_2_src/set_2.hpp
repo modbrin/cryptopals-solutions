@@ -1,5 +1,5 @@
 #pragma once
-#include "../set_1/set_1.hpp" // reuse utilities from previous sets
+#include "../set_1_src/set_1.hpp" // reuse utilities from previous sets
 #include <algorithm>
 #include <random>
 
@@ -174,7 +174,7 @@ void task_9()
 void task_10()
 {
     const std::string key = "YELLOW SUBMARINE";
-    std::fstream infile("set_2/task10.txt", std::ios::in);
+    std::fstream infile("set_2_src/task10.txt", std::ios::in);
     if (!infile) throw std::runtime_error("opening file failed");
 
     // read base64-encoded cipher from file

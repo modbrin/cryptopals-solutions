@@ -472,7 +472,7 @@ void task_3() {
 // Find and break single-byte-xor cipher from bunch of samples
 void task_4() {
 	std::string line;
-	std::fstream infile("set_1/task4.txt", std::ios::in);
+	std::fstream infile("set_1_src/task4.txt", std::ios::in);
 
 	std::string best_guess, curr_guess;
 	double max_rating = 0, curr_rating;
@@ -502,7 +502,7 @@ void task_5() {
 void task_6() {
 	assert(string_distance("this is a test", "wokka wokka!!!") == 37);
 
-	std::fstream infile("set_1/task6.txt", std::ios::in);
+	std::fstream infile("set_1_src/task6.txt", std::ios::in);
 	if (!infile) throw std::runtime_error("opening file failed");
 
 	// read base64-encoded cipher from file
@@ -521,7 +521,7 @@ void task_6() {
 
 void task_7() {
 	const std::string key = "YELLOW SUBMARINE";
-	std::fstream infile("set_1/task7.txt", std::ios::in);
+	std::fstream infile("set_1_src/task7.txt", std::ios::in);
 	if (!infile) throw std::runtime_error("opening file failed");
 
 	// read base64-encoded cipher from file
@@ -537,7 +537,7 @@ void task_7() {
 
 // Detect AES in ECB mode from bunch of hex-encoded ciphertexts
 void task_8() {
-	std::fstream infile("set_1/task8.txt", std::ios::in);
+	std::fstream infile("set_1_src/task8.txt", std::ios::in);
 	if (!infile) throw std::runtime_error("opening file failed");
 
 	std::string likely_ecb_cipher;
